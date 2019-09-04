@@ -37,9 +37,8 @@ class BoxFeature:
            return True
 
     def GetResources(self):
-        #print(os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'))
-        #return {'Pixmap'  : os.path.join(DefeaturingWB_icons_path,'DefeaturingParametric.svg'), 'MenuText': \
-        return {'Pixmap'  : os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'), 'MenuText': \
+        #return {'Pixmap'  : os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'), 'MenuText': \
+        return {'Pixmap'  : 'GDMLBoxFeature', 'MenuText': \
                 QtCore.QT_TRANSLATE_NOOP('GDMLBoxFeature',\
                 'Box Object'), 'ToolTip': \
                 QtCore.QT_TRANSLATE_NOOP('GDMLBoxFeature',\
@@ -54,7 +53,7 @@ class ConeFeature:
         a=FreeCAD.ActiveDocument.addObject("Part::FeaturePython","GDMLCone")
         print("GDMLCone Object - added")
         #  obj,rmin1,rmax1,rmin2,rmax2,z,startphi,deltaphi,aunit,lunits,material
-        GDMLCone(a,1,3,4,7,10.0,0,2,"rads","mm","SSteal")
+        GDMLCone(a,1,3,4,7,10.0,0,2,"rads","mm","SSteel")
         print("GDMLCone initiated")
         ViewProvider(a.ViewObject)
         print("GDMLCone ViewProvided - added")
@@ -84,7 +83,7 @@ class EllispoidFeature:
                   "GDMLEllipsoid")
         print("GDMLEllipsoid Object - added")
         #  obj,ax, by, cz, zcut1, zcut2, lunit,material
-        GDMLEllipsoid(a,10,20,30,0,0,"mm","SSteal")
+        GDMLEllipsoid(a,10,20,30,0,0,"mm","SSteel")
         print("GDMLEllipsoid initiated")
         ViewProvider(a.ViewObject)
         print("GDMLEllipsoid ViewProvided - added")
@@ -114,7 +113,7 @@ class ElliTubeFeature:
                   "GDMLElTube")
         print("GDMLElTube Object - added")
         #  obj,dx, dy, dz, lunit, material
-        GDMLElTube(a,10,20,30,"mm","SSteal")
+        GDMLElTube(a,10,20,30,"mm","SSteel")
         print("GDMLElTube initiated")
         ViewProvider(a.ViewObject)
         print("GDMLElTube ViewProvided - added")
@@ -243,13 +242,22 @@ class CycleFeature :
 
 
         def cycle(obj) :
-            print ("Toggle : "+ obj.Label)
-            #print dir(obj)
-            
+            #print ("Toggle : "+ obj.Label)
+            #print (dir(obj))
+            #print("TypeId : "+str(obj.TypeId))
+            if obj.TypeId == "App::Part" :
+               for i in obj.OutList :
+                   #print(i)
+                   #print(dir(i))
+                   #print (i.TypeId)
+                   if i.TypeId != "App::Origin" :
+                      cycle(i) 
+            elif obj.TypeId =="App::Origin" :
+                return
             #print obj.isDerivedFrom('App::DocumentObjectGroupPython')
             # Is this a genuine group i.e. Volumes
             # Not Parts with Groups i.e. GDMLPolycone
-            if obj.isDerivedFrom('App::DocumentObjectGroupPython') :
+            elif obj.isDerivedFrom('App::DocumentObjectGroupPython') :
                #print "Toggle Group" 
                for s in obj.Group :
                    #print s

@@ -30,13 +30,27 @@
 #* Also copyright Keith Sloan                                              * 
 #***************************************************************************/
 
-import FreeCAD
+#import FreeCAD
+from FreeCAD import *
+import PartGui
+import GDMLCommands, GDMLResources
 import gdml_locator, os, sys
 global GDML_WB_icons_path
 GDML_WBpath = os.path.dirname(gdml_locator.__file__)
 GDML_WB_icons_path =  os.path.join( GDML_WBpath, 'Resources', 'icons')
+GDML_WB_resources_path =  os.path.join( GDML_WBpath, 'Resources')
 
 class GDML_Workbench ( Workbench ):
+
+    class MyObserver():
+       def __init__(self):
+           self.signal = []
+
+       def slotCreatedDocument(self, doc):
+           from importGDML import processGDML
+           processGDML(doc,FreeCAD.getResourceDir() + \
+                       "Mod/GDML/Resources/Default.gdml")
+    
     "GDML workbench object"
     def __init__(self):
         #self.__class__.Icon = FreeCAD.getResourceDir() + "Mod/GDML/Resources/icons/GDMLWorkbench.svg"
@@ -47,11 +61,11 @@ class GDML_Workbench ( Workbench ):
         self.__class__.ToolTip = "GDML workbench"
 
     def Initialize(self):
-        global GDML_WB_icons_path
+        global GDML_WB_icons_path, GDML_WB_resources_path
         def QT_TRANSLATE_NOOP(scope, text):
             return text
         
-        import GDMLCommands, GDMLResources
+        #import GDMLCommands, GDMLResources
         commands=['CycleCommand','BoxCommand','ConeCommand','ElTubeCommand', \
                   'EllipsoidCommand','SphereCommand', \
                   'TrapCommand','TubeCommand']
@@ -59,25 +73,34 @@ class GDML_Workbench ( Workbench ):
                          'ElTubeCommand', 'EllipsoidCommand','SphereCommand', \
                          'TrapCommand','TubeCommand']
 
-        import PartGui
         parttoolbarcommands = ['Part_Cut','Part_Fuse','Part_Common']
 
         self.appendToolbar(QT_TRANSLATE_NOOP('Workbench','GDMLTools'),toolbarcommands)
         self.appendMenu('GDML',commands)
         self.appendToolbar(QT_TRANSLATE_NOOP('Workbech','GDML Part tools'),parttoolbarcommands)
+        #ResourcePath = FreeCAD.getHomePath() + "Mod/GDML/Resources/"
+        ResourcePath = GDML_WB_resources_path
+        print("Resource Path : "+ResourcePath)
+        #FreeCADGui.addIconPath(FreeCAD.getResourceDir() + \
         #FreeCADGui.addIconPath(":/icons")
         FreeCADGui.addIconPath(GDML_WB_icons_path) 
-                            #    FreeCAD.getResourceDir() + \
-                            #  "Mod/GDML/Resources/icons")
-        FreeCADGui.addLanguagePath(":/translations")
-        FreeCADGui.addPreferencePage(":/ui/GDML-base.ui","GDML")
-        # print(FreeCAD.getResourceDir() + "Mod/Resources/ui/GDML-base.ui")
-        #FreeCADGui.addPreferencePage(FreeCAD.getResourceDir() + \
-        #        "Mod/Resources/ui/GDML-base.ui","GDML")
-        #FreeCADGui.addPreferencePage(":/ui/openscadprefs-base.ui","OpenSCAD")
-        #FreeCADGui.addPreferencePage(FreeCAD.getResourceDir() + \
-        #            "Mod/Resources/ui/openscadprefs-base.ui","OpenSCAD")
+        #FreeCADGui.addIconPath(ResourcePath + "icons")
+        #FreeCADGui.addLanguagePath(":/translations")
+        FreeCADGui.addLanguagePath(ResourcePath + "/translations")
+        FreeCADGui.addPreferencePage(ResourcePath + "/ui/GDML-base.ui","GDML")
 
+    def Activated(self):
+        "This function is executed when the workbench is activated"
+        print ("Activated")
+        self.obs = self.MyObserver()
+        App.addDocumentObserver(self.obs)
+        return
+
+    def Deactivated(self):
+        "This function is executed when the workbench is deactivated"
+        App.removeDocumentObserver(self.obs)
+        return
+    
     def GetClassName(self):
         return "Gui::PythonWorkbench"
 

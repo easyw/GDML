@@ -7,6 +7,10 @@ import gdml_locator, os, sys
 GDML_WBpath = os.path.dirname(gdml_locator.__file__)
 GDML_WB_icons_path =  os.path.join( GDML_WBpath, 'Resources', 'icons')
 
+# Global Material List
+global MaterialsList
+MaterialsList = []
+
 # Get angle in Radians
 def getAngle(aunit,angle) :
    if aunit == 1 :   # 0 radians 1 Degrees
@@ -14,6 +18,41 @@ def getAngle(aunit,angle) :
    else :
       return angle
 
+def makeRegularPolygon(n,r,z):
+    from math import cos, sin, pi
+    vecs = [FreeCAD.Vector(cos(2*pi*i/n)*r, sin(2*pi*i/n)*r, z) \
+            for i in range(n+1)]
+    return vecs
+
+def printPolyVec(n,v) :
+    print("Polygon : "+n)
+    for i in v :
+        print("Vertex - x : "+str(i[0])+" y : "+str(i[1])+" z : "+str(i[2]))
+
+def translate(shape,base) :
+    # Input Object and displacement vector - return a transformed shape
+    myPlacement = FreeCAD.Placement()
+    myPlacement.move(base)
+    mat1 = myPlacement.toMatrix()
+    print(mat1)
+    mat2 = shape.Matrix
+    mat  = mat1.multiply(mat2)
+    print(mat)
+    retShape = shape.copy()
+    retShape.transformShape(mat, True)
+    return retShape
+
+def makeFrustrum(num,poly0,poly1) :
+    # return list of faces
+    print("Make Frustrum : "+str(num)+" Faces")
+    faces = []
+    for i in range(num) :
+       j = i + 1
+       print([poly0[i],poly0[j],poly1[j],poly1[i]])
+       w = Part.makePolygon([poly0[i],poly0[j],poly1[j],poly1[i],poly0[i]])
+       faces.append(Part.Face(w))
+    print("Number of Faces : "+str(len(faces)))
+    return(faces)
 
 class GDMLcommon :
    def __init__(self, obj):
@@ -40,7 +79,9 @@ class GDMLBox(GDMLcommon) :
       obj.addProperty("App::PropertyLength","y","GDMLBox","Length y").y=y
       obj.addProperty("App::PropertyLength","z","GDMLBox","Length z").z=z
       obj.addProperty("App::PropertyString","lunit","GDMLBox","lunit").lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLBox","Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLBox","Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLBox", "Shape of the Box")
       obj.Proxy = self
       self.Type = 'GDMLBox'
@@ -55,23 +96,12 @@ class GDMLBox(GDMLcommon) :
 
    def execute(self, fp):
        '''Do something when doing a recomputation, this method is mandatory'''
-       # Need to add code to check values make a valid cone
        box = Part.makeBox(fp.x,fp.y,fp.z)
-       fp.Shape = box
+       base = FreeCAD.Vector(-fp.x/2,-fp.y/2,-fp.z/2)
+       #print(fp.TypeId)
+       #print(dir(box))
+       fp.Shape = translate(box,base)
        GDMLShared.trace("Recompute GDML Box Object \n")
-       
-   #def getIcon(self):
-   #    #import osc_locator, os
-   #    global GDML_WB_icons_path
-   #    return(os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'))
-   #def GetResources(self):
-   #    #print(os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'))
-   #    #return {'Pixmap'  : os.path.join(DefeaturingWB_icons_path,'DefeaturingParametric.svg'), 'MenuText': \
-   #    return {'Pixmap'  : os.path.join(GDML_WB_icons_path,'GDMLBoxFeature.svg'), 'MenuText': \
-   #            QtCore.QT_TRANSLATE_NOOP('GDMLBoxFeature',\
-   #            'Box Object'), 'ToolTip': \
-   #            QtCore.QT_TRANSLATE_NOOP('GDMLBoxFeature',\
-   #            'Box Object')}
 
 class GDMLCone(GDMLcommon) :
    def __init__(self, obj, rmin1,rmax1,rmin2,rmax2,z,startphi,deltaphi,aunit, \
@@ -90,8 +120,10 @@ class GDMLCone(GDMLcommon) :
       obj.addProperty("App::PropertyString","lunit","GDMLCone","lunit").lunit=lunit
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLCone", \
                       "Shape of the Cone")
-      obj.addProperty("App::PropertyStringList","material","GDMLCone", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLCone", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       self.Type = 'GDMLCone'
       obj.Proxy = self
 
@@ -111,14 +143,20 @@ class GDMLCone(GDMLcommon) :
        #print fp.rmax1
        #print fp.rmax2
        #print fp.z
+       
+       base = FreeCAD.Vector(0,0,-fp.z/2)
+       cone1 = Part.makeCone(fp.rmin1,fp.rmax1,fp.z)
+       if (fp.rmin1 != fp.rmin2 or fp.rmax1 != fp.rmax2 ) :
+          cone2 = Part.makeCone(fp.rmin2,fp.rmax2,fp.z)
+          if  fp.rmax1 > fp.rmax2 :
+              cone3 = cone1.cut(cone2)
+          else :
+              cone3 = cone2.cut(cone1)
 
-       cone1 = Part.makeCone(fp.rmax2,fp.rmax1,fp.z)
-       if (fp.rmin1 != 0.0 and fp.rmin2 != 0.0) :
-          cone2 = Part.makeCone(fp.rmin2,fp.rmin1,fp.z)
-          cone3 = cone1.cut(cone2)
-          fp.Shape = cone3
+          fp.Shape = translate(cone3,base)
        else :   
-          fp.Shape = cone1
+          fp.Shape = translate(cone1,base)
+       
        GDMLShared.trace("Recompute GDML Cone Object \n")
 
 class GDMLElCone(GDMLcommon) :
@@ -136,8 +174,10 @@ class GDMLElCone(GDMLcommon) :
                       "lunit").lunit=lunit
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLElCone", \
                       "Shape of the Cone")
-      obj.addProperty("App::PropertyStringList","material","GDMLElCone", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLElCone", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       self.Type = 'GDMLElCone'
       obj.Proxy = self
 
@@ -191,8 +231,10 @@ class GDMLEllipsoid(GDMLcommon) :
                         lunit=lunit
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLEllipsoid", \
                       "Shape of the Ellipsoid")
-      obj.addProperty("App::PropertyStringList","material","GDMLEllipsoid", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLEllipsoid", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLEllipsoid", \
                       "Shape of the Ellipsoid")
       self.Type = 'GDMLEllipsoid'
@@ -236,9 +278,12 @@ class GDMLEllipsoid(GDMLcommon) :
           pl = FreeCAD.Placement()
           pl.move(FreeCAD.Vector(-ax,-by,-cz))
           box2.Placement = pl
-          fp.Shape = t2ellipsoid.cut(box2)
+          shape = t2ellipsoid.cut(box2)
        else :  
-          fp.Shape = t2ellipsoid
+          shape = t2ellipsoid
+       
+       base = FreeCAD.Vector(0,0,cz/4)
+       fp.Shape = translate(shape,base)   
        GDMLShared.trace("Recompute GDML Ellipsoid Object \n")
 
 class GDMLElTube(GDMLcommon) :
@@ -254,8 +299,10 @@ class GDMLElTube(GDMLcommon) :
                         lunit=lunit
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLElTube", \
                       "Shape of the Cone")
-      obj.addProperty("App::PropertyStringList","material","GDMLElTube", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLElTube", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLElTube", \
                       "Shape of the ElTube")
       self.Type = 'GDMLElTube'
@@ -278,8 +325,257 @@ class GDMLElTube(GDMLcommon) :
        mat.A44 = 1
        #trace mat
        newtube = tube.transformGeometry(mat)
-       fp.Shape = newtube
+       base = FreeCAD.Vector(0,0,-fp.dz/2)
+       fp.Shape = translate(newtube,base)
        GDMLShared.trace("Recompute GDML ElTube Object \n")
+
+class GDMLPolyhedra(GDMLcommon) :
+   def __init__(self, obj, startphi, deltaphi, numsides, aunit, lunit, material) :
+      '''Add some custom properties for Polyhedra feature'''
+      obj.addProperty("App::PropertyFloat","startphi","GDMLPolyhedra", \
+                      "Start Angle").startphi=startphi
+      obj.addProperty("App::PropertyFloat","deltaphi","GDMLPolyhedra", \
+                      "Delta Angle").deltaphi=deltaphi
+      obj.addProperty("App::PropertyInteger","numsides","GDMLPolyhedra", \
+                      "Number of Side").numsides=numsides
+      obj.addProperty("App::PropertyEnumeration","aunit","GDMLPolyhedra", \
+                       "aunit")
+      obj.aunit=["rad", "deg"]
+      obj.aunit=0
+      obj.addProperty("App::PropertyString","lunit","GDMLPolyhedra", \
+                      "lunit").lunit=lunit
+      obj.addProperty("App::PropertyEnumeration","material","GDMLPolyhedra", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
+      obj.addProperty("Part::PropertyPartShape","Shape","GDMLPolyhedra", \
+                      "Shape of the Polyhedra")
+      self.Type = 'GDMLPolyhedra'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['startphi', 'deltaphi', 'numsides', 'aunit','lunit'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+
+   def execute(self, fp):
+       '''Do something when doing a recomputation, this method is mandatory'''
+
+       print("Execute Polyhedra")
+       parms = self.Object.OutList
+       #print("OutList")
+       #print(parms)
+       GDMLShared.trace("Number of parms : "+str(len(parms)))
+       numsides = fp.numsides
+       GDMLShared.trace("Number of sides : "+str(numsides))
+       z0    = parms[0].z
+       rmin0 = parms[0].rmin
+       rmax0 = parms[0].rmax
+       GDMLShared.trace("Top z    : "+str(z0))
+       GDMLShared.trace("Top rmin : "+str(rmin0))
+       GDMLShared.trace("Top rmax : "+str(rmax0))
+       inner_faces = []
+       outer_faces = []
+       # Make top Polygon
+       inner_poly0 = makeRegularPolygon(numsides,rmin0,z0)
+       outer_poly0 = makeRegularPolygon(numsides,rmax0,z0)
+       # Add top face
+       inner_faces.append(Part.Face(Part.makePolygon(inner_poly0)))
+       outer_faces.append(Part.Face(Part.makePolygon(outer_poly0)))
+       for ptr in parms[1:] :
+           z1 = ptr.z
+           rmin1 = ptr.rmin
+           rmax1 = ptr.rmax
+           GDMLShared.trace("z1    : "+str(z1))
+           GDMLShared.trace("rmin1 : "+str(rmin1))
+           GDMLShared.trace("rmax1 : "+str(rmax1))
+           inner_poly1 = makeRegularPolygon(numsides,rmin1,z1)
+           outer_poly1 = makeRegularPolygon(numsides,rmax1,z1)
+           # Concat face lists
+           inner_faces = inner_faces + \
+                   makeFrustrum(numsides,inner_poly0,inner_poly1)
+           outer_faces = outer_faces + \
+                   makeFrustrum(numsides,outer_poly0,outer_poly1)
+           # update for next zsection
+           inner_poly0 = inner_poly1
+           outer_poly0 = outer_poly1
+           z0 = z1
+       # add bottom polygon face
+       inner_faces.append(Part.Face(Part.makePolygon(inner_poly1)))
+       outer_faces.append(Part.Face(Part.makePolygon(outer_poly1)))
+       GDMLShared.trace("Total Faces : "+str(len(inner_faces)))
+       inner_shell = Part.makeShell(inner_faces)
+       inner_solid = Part.makeSolid(inner_shell)
+       outer_shell = Part.makeShell(outer_faces)
+       outer_solid = Part.makeSolid(outer_shell)
+       fp.Shape = outer_solid.cut(inner_solid)
+       #fp.Shape = shell
+       #fp.Shape = Part.makeBox(10,10,10)
+       GDMLShared.trace("Recompute GDML Polyhedra")
+
+class GDMLXtru(GDMLcommon) :
+   def __init__(self, obj, lunit, material) :
+      obj.addExtension('App::OriginGroupExtensionPython', self)
+      obj.addProperty("App::PropertyString","lunit","GDMLXtru", \
+                      "lunit").lunit=lunit
+      obj.addProperty("App::PropertyEnumeration","material","GDMLXtru", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
+      obj.material = 0
+      obj.addProperty("Part::PropertyPartShape","Shape","GDMLXtru", \
+                      "Shape of the Xtru")
+      self.Type = 'GDMLXtru'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       #if prop in ['startphi','deltaphi','aunit','lunit'] :
+       #   self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       parms = self.Object.OutList
+       #print("OutList")
+       #print(parms)
+       GDMLShared.trace("Number of parms : "+str(len(parms)))
+       polyList = []
+       sections = []
+       for ptr in parms :
+           if hasattr(ptr,'x') :
+              x = ptr.x
+              y = ptr.y
+              GDMLShared.trace('x : '+str(x))
+              GDMLShared.trace('y : '+str(y))
+              polyList.append([x, y])
+
+           if hasattr(ptr,'zOrder') :
+              zOrder = ptr.zOrder
+              xOffset = ptr.xOffset
+              yOffset = ptr.yOffset
+              zPosition = ptr.zPosition
+              sf = ptr.scalingFactor
+              s = [zOrder,xOffset,yOffset,zPosition,sf]
+              sections.append(s)
+
+       faces_list = []
+       baseList = []
+       topList = []
+       # close polygon
+       polyList.append(polyList[0])
+       for s in range(0,len(sections)-1) :
+           xOffset1   = sections[s][1]
+           yOffset1   = sections[s][2]
+           zPosition1 = sections[s][3]
+           sf1        = sections[s][4]
+           xOffset2   = sections[s+1][1]
+           yOffset2   = sections[s+1][2]
+           zPosition2 = sections[s+1][3]
+           sf2        = sections[s+1][4]
+           print("polyList")
+           for p in polyList :
+              print(p)
+              vb=FreeCAD.Vector(p[0]*sf1+xOffset1, p[1]*sf1+yOffset1,zPosition1)
+              #vb=FreeCAD.Vector(-20, p[1]*sf1+yOffset1,zPosition1)
+              vt=FreeCAD.Vector(p[0]*sf2+xOffset2, p[1]*sf2+yOffset2,zPosition2)
+              #vt=FreeCAD.Vector(20, p[1]*sf2+yOffset2,zPosition2)
+              baseList.append(vb) 
+              topList.append(vt) 
+           # close polygons
+           baseList.append(baseList[0])
+           topList.append(topList[0])
+           # deal with base face       
+           w1 = Part.makePolygon(baseList)
+           f1 = Part.Face(w1)
+           #f1.reverse()
+           faces_list.append(f1)
+           print("base list")
+           print(baseList)
+           print("Top list")
+           print(topList)
+           # deal with side faces
+           # remember first point is added to end of list
+           for i in range(0,len(baseList)-1) :
+               sideList = []
+               sideList.append(baseList[i])
+               sideList.append(baseList[i+1])
+               sideList.append(topList[i+1])
+               sideList.append(topList[i])
+               # Close SideList polygon
+               sideList.append(baseList[i])
+               print("sideList")
+               print(sideList)
+               w1 = Part.makePolygon(sideList)
+               f1 = Part.Face(w1)
+               faces_list.append(f1)
+           # deal with top face
+           w1 = Part.makePolygon(topList)
+           f1 = Part.Face(w1)
+           #f1.reverse()
+           faces_list.append(f1)
+           print("Faces List")
+           print(faces_list)
+           shell=Part.makeShell(faces_list)
+           #solid=Part.Solid(shell).removeSplitter()
+           solid=Part.Solid(shell)
+           print("Valid Solid : "+str(solid.isValid()))
+           if solid.Volume < 0:
+              solid.reverse()
+       fp.Shape = solid
+
+class GDML2dVertex(GDMLcommon) :
+   def __init__(self, obj, x, y):
+      obj.addProperty("App::PropertyString","Type","Vertex", \
+              "twoDimVertex").Type='twoDimVertex'
+      obj.addProperty("App::PropertyFloat","x","Vertex", \
+              "x").x=x
+      obj.addProperty("App::PropertyFloat","y","Vertex", \
+              "y").y=y
+      obj.setEditorMode("Type", 1) 
+      self.Type = 'Vertex'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['x','y'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       GDMLShared.trace("Recompute GDML 2dVertex Object \n")
+      
+class GDMLSection(GDMLcommon) :
+   def __init__(self, obj, zOrder,zPosition,xOffset,yOffset,scalingFactor):
+      obj.addProperty("App::PropertyString","Type","section", \
+              "section").Type='section'
+      obj.addProperty("App::PropertyInteger","zOrder","section", \
+              "zOrder").zOrder=zOrder
+      obj.addProperty("App::PropertyInteger","zPosition","section", \
+              "zPosition").zPosition=zPosition
+      obj.addProperty("App::PropertyFloat","xOffset","section", \
+              "xOffset").xOffset=xOffset
+      obj.addProperty("App::PropertyFloat","yOffset","section", \
+              "yOffset").yOffset=yOffset
+      obj.addProperty("App::PropertyFloat","scalingFactor","section", \
+              "scalingFactor").scalingFactor=scalingFactor
+      obj.setEditorMode("Type", 1) 
+      self.Type = 'section'
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['zOrder','zPosition','xOffset','yOffset','scaleFactor'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       GDMLShared.trace("Recompute GDML 2dVertex Object \n")
+      
 
 class GDMLzplane(GDMLcommon) :
    def __init__(self, obj, rmin, rmax, z):
@@ -314,8 +610,10 @@ class GDMLPolycone(GDMLcommon) :
       obj.aunit=0
       obj.addProperty("App::PropertyString","lunit","GDMLPolycone", \
                       "lunit").lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLPolycone", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLPolycone", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLPolycone", \
                       "Shape of the Polycone")
       self.Type = 'GDMLPolycone'
@@ -387,8 +685,10 @@ class GDMLSphere(GDMLcommon) :
       obj.aunit=0
       obj.addProperty("App::PropertyString","lunit","GDMLSphere", \
                       "lunit").lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLSphere", \
-                       "Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLSphere", \
+                       "Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLSphere", \
                       "Shape of the Sphere")
       obj.Proxy = self
@@ -421,7 +721,7 @@ class GDMLSphere(GDMLcommon) :
 class GDMLTrap(GDMLcommon) :
    def __init__(self, obj, z, theta, phi, x1, x2, x3, x4, y1, y2, alpha, \
                 aunit, lunit, material):
-      '''Add some custom properties to our Tube feature'''
+      "General Trapezoid"
       obj.addProperty("App::PropertyLength","z","GDMLTrap","z").z=z
       obj.addProperty("App::PropertyFloat","theta","GDMLTrap","theta"). \
                        theta=theta
@@ -445,8 +745,9 @@ class GDMLTrap(GDMLcommon) :
       obj.aunit=0
       obj.addProperty("App::PropertyString","lunit","GDMLTrap","lunit"). \
                        lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLTrap","Material"). \
-                       material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLTrap","Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLTrap", \
                       "Shape of the Trap")
       obj.Proxy = self
@@ -530,7 +831,7 @@ class GDMLTrap(GDMLcommon) :
 
 class GDMLTrd(GDMLcommon) :
    def __init__(self, obj, z, x1, x2,  y1, y2, lunit, material) :
-      '''Add some custom properties to our Tube feature'''
+      "3.4.15 : Trapezoid – x & y varying along z"
       obj.addProperty("App::PropertyLength","z","GDMLTrd`","z").z=z
       obj.addProperty("App::PropertyLength","x1","GDMLTrd", \
                       "Length x at y= -y1 face -z").x1=x1
@@ -542,8 +843,9 @@ class GDMLTrd(GDMLcommon) :
                       "Length y at face +z").y2=y2
       obj.addProperty("App::PropertyString","lunit","GDMLTrd","lunit"). \
                        lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLTrd","Material"). \
-                       material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLTrd","Material") 
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLTrd", \
                       "Shape of the Trap")
       obj.Proxy = self
@@ -608,7 +910,9 @@ class GDMLTube(GDMLcommon) :
       obj.aunit=["rad", "deg"]
       obj.aunit=0
       obj.addProperty("App::PropertyString","lunit","GDMLTube","lunit").lunit=lunit
-      obj.addProperty("App::PropertyString","material","GDMLTube","Material").material=material
+      obj.addProperty("App::PropertyEnumeration","material","GDMLTube","Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material) 
       obj.addProperty("Part::PropertyPartShape","Shape","GDMLTube", "Shape of the Tube")
       obj.Proxy = self
       self.Type = 'GDMLTube'
@@ -651,7 +955,10 @@ class GDMLTube(GDMLcommon) :
        cyl3 = cyl1.cut(cyl2) 
 
        tube = cyl3.cut(solid)
-       fp.Shape = tube
+       #base = FreeCAD.Vector(0,0,fp.z/2)
+       #base = FreeCAD.Vector(0,0,0)
+       base = FreeCAD.Vector(0,0,-fp.z/2)
+       fp.Shape = translate(tube,base)
        GDMLShared.trace("Recompute GDML Tube Object \n")
 
    def make_face3(self,v1,v2,v3):
@@ -672,6 +979,135 @@ class GDMLTube(GDMLcommon) :
                'lunit']:
            self.execute(fp)
        GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+
+class GDMLVertex(GDMLcommon) :
+   def __init__(self, obj, x, y, z, lunit):
+      obj.addProperty("App::PropertyFloat","x","GDMLVertex", \
+              "x").x=x
+      obj.addProperty("App::PropertyFloat","y","GDMLVertex", \
+              "y").y=y
+      obj.addProperty("App::PropertyFloat","z","GDMLVertex", \
+              "z").z=z
+      self.Type = 'GDMLVertex'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['x','y', 'z'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       GDMLShared.trace("Recompute GDML Vertex Object \n")
+       
+
+class GDMLTriangular(GDMLcommon) :
+   def __init__(self, obj, v1, v2, v3, vtype):
+      obj.addProperty("App::PropertyString","v1","Triangular", \
+              "v1").v1=v1
+      obj.addProperty("App::PropertyString","v2","Triangular", \
+              "v1").v2=v2
+      obj.addProperty("App::PropertyString","v3","Triangular", \
+              "v1").v3=v3
+      obj.addProperty("App::PropertyEnumeration","vtype","Triangular","vtype")
+      obj.vtype=["Absolute", "Relative"]
+      obj.vtype=0
+      self.Type = 'GDMLTriangular'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['v1','v2','v3','type'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       GDMLShared.trace("Recompute GDML Triangular Object \n")
+       
+class GDMLQuadrangular(GDMLcommon) :
+   def __init__(self, obj, v1, v2, v3, v4, vtype):
+      obj.addProperty("App::PropertyString","v1","Quadrang", \
+              "v1").v1=v1
+      obj.addProperty("App::PropertyString","v2","Quadrang", \
+              "v2").v2=v2
+      obj.addProperty("App::PropertyString","v3","Quadrang", \
+              "v3").v3=v3
+      obj.addProperty("App::PropertyString","v4","Quadrang", \
+              "v4").v4=v4
+      obj.addProperty("App::PropertyEnumeration","vtype","Quadrang","vtype")
+      obj.vtype=["Absolute", "Relative"]
+      obj.vtype=0
+      self.Type = 'GDMLQuadrangular'
+      self.Object = obj
+      obj.Proxy = self
+
+   def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       if prop in ['v1','v2','v3','v4','type'] :
+          self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+   def execute(self, fp):
+       GDMLShared.trace("Recompute GDML Quqdrang\n")
+       
+class GDMLTessellated(GDMLcommon) :
+    def __init__(self, obj, material ) :
+      obj.addExtension('App::OriginGroupExtensionPython', self)
+      obj.addProperty("Part::PropertyPartShape","Shape","GDMLTessellated", "Shape of the Tesssellation")
+      obj.addProperty("App::PropertyEnumeration","material","GDMLTessellated","Material")
+      obj.material = MaterialsList
+      obj.material = MaterialsList.index(material)
+      self.Type = 'GDMLTessellated'
+      self.Object = obj
+      obj.Proxy = self
+
+    def onChanged(self, fp, prop):
+       '''Do something when a property has changed'''
+       #if prop in ['v1','v2','v3','v4','type'] :
+       #   self.execute(fp)
+       #self.execute(fp)
+       GDMLShared.trace("Change property: " + str(prop) + "\n")
+
+    def execute(self, fp):
+       print("Tessellated")
+       parms = self.Object.OutList
+       GDMLShared.trace("Number of parms : "+str(len(parms)))
+       faces = []
+       for ptr in parms :
+           #print(dir(ptr))
+           if hasattr(ptr,'v4') :
+              print("Quad")
+              print(ptr.v1)
+              print(ptr.v2)
+              print(ptr.v3)
+              print(ptr.v4)
+              faces.append(GDMLShared.quad(ptr.v1,ptr.v2,ptr.v3,ptr.v4))
+
+           else :   
+              print("Triangle")
+              print("Vertex 1")
+              print(ptr.v1)
+              print("Vertex 2")
+              print(ptr.v2)
+              print("Vertex 3")
+              print(ptr.v3)
+              faces.append(GDMLShared.triangle(ptr.v1,ptr.v2,ptr.v3))
+     
+       print(faces)
+       shell=Part.makeShell(faces)
+       print("Is Valid")
+       print(shell.isValid())
+       shell.check()
+       #solid=Part.Solid(shell).removeSplitter()
+       solid=Part.Solid(shell)
+       if solid.Volume < 0:
+          solid.reverse()
+       fp.Shape = solid
+       #fp.Shape = faces[0]
+       #fp.Shape = Part.makeBox(10,10,10)
 
 class GDMLFiles(GDMLcommon) :
    def __init__(self,obj,FilesEntity,sectionDict) :
@@ -705,10 +1141,17 @@ class GDMLvolume :
       obj.Proxy = self
       self.Object = obj
 
+class GDMLconstant(GDMLcommon) :
+   def __init__(self,obj,name,value) :
+      obj.addProperty("App::PropertyString","name",'GDMLconstant','name').name = name
+      obj.addProperty("App::PropertyString","value",'GDMLconstant','value').value = value
+      obj.Proxy = self
+      self.Object = obj
+
 class GDMLmaterial(GDMLcommon) :
    def __init__(self,obj,name) :
       # Add most properties later 
-      obj.addProperty("App::PropertyString","name",name).name = name
+      obj.addProperty("App::PropertyString","name",'GDMLmaterial','name').name = name
       obj.Proxy = self
       self.Object = obj
 
@@ -731,12 +1174,11 @@ class GDMLelement(GDMLcommon) :
       self.Object = obj
 
 class GDMLisotope(GDMLcommon) :
-   #def __init__(self,obj,name,N,Z,unit,value) :
-   def __init__(self,obj,name,N,Z,value) :
+   def __init__(self,obj,name,N,Z,unit,value) :
       obj.addProperty("App::PropertyString","name",name).name = name 
       obj.addProperty("App::PropertyInteger","N",name).N=N
       obj.addProperty("App::PropertyInteger","Z",name).Z=Z
-      #obj.addProperty("App::PropertyString","unit",name).unit = unit 
+      obj.addProperty("App::PropertyString","unit",name).unit = unit 
       obj.addProperty("App::PropertyFloat","value",name).value = value 
       obj.Proxy = self
       self.Object = obj

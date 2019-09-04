@@ -30,14 +30,22 @@ import FreeCAD, os, Part, math
 from FreeCAD import Vector
 
 # xml handling
-import argparse
-import xml.etree.ElementTree as ET
-from   xml.etree.ElementTree import XML 
+#import argparse
+import lxml.etree  as ET
+#from   xml.etree.ElementTree import XML 
 #################################
 
 try: import FreeCADGui
 except ValueError: gui = False
 else: gui = True
+
+global zOrder
+
+from GDMLObjects import GDMLQuadrangular, GDMLTriangular, \
+                        GDML2dVertex, GDMLSection, \
+                        GDMLmaterial, GDMLfraction, \
+                        GDMLcomposite, GDMLisotope, \
+                        GDMLelement, GDMLconstant
 
 #***************************************************************************
 # Tailor following to your requirements ( Should all be strings )          *
@@ -89,10 +97,11 @@ def GDMLstructure() :
 
     defineCnt = LVcount = PVcount = POScount =  ROTcount = 1
 
-    gdml = ET.Element('gdml', {
-          'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
-          'xsi:noNamespaceSchemaLocation': "http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd"
-})
+    #gdml = ET.Element('gdml', {
+          #'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
+          #'xsi:noNamespaceSchemaLocation': "http://service-spi.web.cern.ch/service-spi/app/releases/GDML/schema/gdml.xsd"
+#})
+    gdml = ET.Element('gdml')
     define = ET.SubElement(gdml, 'define')
     materials = ET.SubElement(gdml, 'materials')
     solids = ET.SubElement(gdml, 'solids')
@@ -103,186 +112,9 @@ def GDMLstructure() :
 
 
 def defineMaterials():
+    # Replaced by loading Default
     print("Define Materials")
     global materials
-#
-#   Some hardcoded isotopes, elements & materials
-#
-#   ISOTOPES
-#
-#   C0 - Carbon
-#
-    iso = ET.SubElement(materials,'isotope', \
-                {'N': '12', 'Z': '6', 'name': "C120x56070ee874f0" })
-    #ET.ElementTree(gdml).write("test7", 'utf-8', True)
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '12'})
-    iso = ET.SubElement(materials,'isotope', {'N': '13', 'Z': '6', \
-                        'name': "C130x56070ee940b0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '13.0034'})
-    #ET.ElementTree(gdml).write("test3", 'utf-8', True)
-
-#
-#   N - Nitrogen
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '14', 'Z': '7', \
-                        'name': "N140x56070ee89030"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '14.0031'})
-    iso = ET.SubElement(materials,'isotope', {'N': '15', 'Z': '7', \
-                        'name': "N150x56070ee8feb0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '15.0001'})
-#
-#   O0 - Oxygen
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '16', 'Z': '8', \
-                        'name': "O160x56070ee8fa60"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '15.9949'})
-    iso = ET.SubElement(materials,'isotope', {'N': '17', 'Z': '8', \
-                        'name': "O170x56070ee8a570"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '16.9991'})
-    iso = ET.SubElement(materials,'isotope', {'N': '18', 'Z': '8', \
-                        'name': "O180x56070ee90cb0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '17.9992'})
-    #ET.ElementTree(gdml).write("test3a", 'utf-8', True)
-#
-#   Cr Chromium
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '50', 'Z': '24', \
-                        'name': "Cr500x56070ee875e0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '49.946'})
-    iso = ET.SubElement(materials,'isotope', {'N': '52', 'Z': '24', \
-                        'name': "Cr520x56070ee897e0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '51.9405'})
-    iso = ET.SubElement(materials,'isotope', {'N': '53', 'Z': '24', \
-                        'name': "Cr530x56070ee89830"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '52.9407'})
-    iso = ET.SubElement(materials,'isotope',{'N': '54', 'Z': '24', \
-                        'name': "Cr540x56070ee89880"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '53.9389'})
-
-    #ET.ElementTree(gdml).write("test3a2", 'utf-8', True)
-#
-#   Ni - Nickel
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '58', 'Z': '28', \
-                        'name': "Ni580x56070ee899c0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '57.9353'})
-    iso = ET.SubElement(materials,'isotope', {'N': '60', 'Z': '28', \
-                         'name': "Ni600x56070ee89a10"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '59.9308'})
-    iso = ET.SubElement(materials,'isotope', {'N': '61', 'Z': '28', \
-                         'name': "Ni610x56070ee89a60"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '61.9311'})
-    iso = ET.SubElement(materials,'isotope', {'N': '62', 'Z': '28', \
-                         'name': "Ni620x56070ee89ab0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '61.9283'})
-    iso = ET.SubElement(materials,'isotope', {'N': '64', 'Z': '28', \
-                         'name': "Ni640x56070ee87ca0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '63.928'})
-    #ET.ElementTree(gdml).write("test3b", 'utf-8', True)
-#
-#   Ar - Argon
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '36', 'Z': '18', \
-                         'name': "Ar360x56070ee8aba0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '35.9675'})
-    iso = ET.SubElement(materials,'isotope', {'N': '38', 'Z': '18', \
-                          'name': "Ar380x56070ee87400"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '37.9627'})
-    iso = ET.SubElement(materials,'isotope', {'N': '40', 'Z': '18', \
-                          'name': "Ar400x56070ee90c20"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '37.9627'})
-#
-#   Fe - Iron
-#
-    iso = ET.SubElement(materials,'isotope', {'N': '54', 'Z': '26', \
-                           'name': "Fe540x56070ee87130"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '53.9396'})
-    iso = ET.SubElement(materials,'isotope', {'N': '56', 'Z': '26', \
-                            'name': "Fe560x56070ee95300"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '55.9349'})
-    iso = ET.SubElement(materials,'isotope', {'N': '57', 'Z': '26', \
-                            'name': "Fe570x56070ee8eff0"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '56.9354'})
-    iso = ET.SubElement(materials,'isotope', {'N': '58', 'Z': '26', \
-                             'name': "Fe580x56070ee8d300"})
-    ET.SubElement(iso,'atom', {'unit': 'g/mole', 'value': '57.9333'}) 
-    #ET.ElementTree(gdml).write("test4", 'utf-8', True)
-#
-#   ELEMENTS
-#
-    elem = ET.SubElement(materials,'element', {'name': "Iron0x56070eea0880"})
-    ET.SubElement(elem,'fraction', {'n': '0.05845', 'ref': "Fe540x56070ee87130"})
-    ET.SubElement(elem,'fraction', {'n': '0.91754', 'ref': "Fe560x56070ee95300"})
-    ET.SubElement(elem,'fraction', {'n': '0.02119', 'ref': "Fe570x56070ee8eff0"})
-    ET.SubElement(elem,'fraction', {'n': '0.00282', 'ref': "Fe580x56070ee8d300"})
-    elem = ET.SubElement(materials,'element', {'name': "Chromium0x56070eea004"})
-    ET.SubElement(elem,'fraction', {'n': '0.04345', 'ref': "Cr500x56070ee875e0"})
-    ET.SubElement(elem,'fraction', {'n': '0.83789', 'ref': "Cr520x56070ee897e0"})
-    ET.SubElement(elem,'fraction', {'n': '0.09501', 'ref': "Cr530x56070ee89830"})
-    ET.SubElement(elem,'fraction', {'n': '0.02365', 'ref': "Cr540x56070ee89880"})
-    elem = ET.SubElement(materials,'element', {'name': "Nickel0x56070ee81420"})
-    ET.SubElement(elem,'fraction', {'n': '0.680769', 'ref': "Ni580x56070ee899c0"})
-    ET.SubElement(elem,'fraction', {'n': '0.262231', 'ref': "Ni600x56070ee89a10"})
-    ET.SubElement(elem,'fraction', {'n': '0.011399', 'ref': "Ni610x56070ee89a60"})
-    ET.SubElement(elem,'fraction', {'n': '0.036345', 'ref': "Ni620x56070ee89ab0"})
-    ET.SubElement(elem,'fraction', {'n': '0.009256', 'ref': "Ni640x56070ee87ca0"}) 
-    elem = ET.SubElement(materials,'element', {'name': "N0x56070ee94e30"})
-    ET.SubElement(elem,'fraction', {'n': '0.99632', 'ref': "N140x56070ee89030"})
-    ET.SubElement(elem,'fraction', {'n': '0.00368', 'ref': "N150x56070ee8feb0"})
-    elem = ET.SubElement(materials,'element', {'name': "O0x56070eea0370"})
-    ET.SubElement(elem,'fraction', {'n': '0.99757', 'ref': "O160x56070ee8fa60"})
-    ET.SubElement(elem,'fraction', {'n': '0.00038', 'ref': "O170x56070ee8a570"})
-    ET.SubElement(elem,'fraction', {'n': '0.00205', 'ref': "O180x56070ee90cb0"})
-    elem = ET.SubElement(materials,'element', {'name': "Ar0x56070eea07c0"})
-    ET.SubElement(elem,'fraction', {'n': '0.003365', 'ref': "Ar360x56070ee8aba0"})
-    ET.SubElement(elem,'fraction', {'n': '0.000632', 'ref': "Ar380x56070ee87400"})
-    ET.SubElement(elem,'fraction', {'n': '0.996003', 'ref': "Ar400x56070ee90c20"})
-    #ET.ElementTree(gdml).write("test5", 'utf-8', True)
-
-#
-#   MATERIALS
-#
-    sst = ET.SubElement(materials,'material', \
-            {'name': "SSteel0x56070ee87d10"})
-#    sst = ET.SubElement(materials,'material', \
-#            {'name': "SSteel0x56070ee87d10", 'state': "solid"})
-    ET.SubElement(sst,'T', {'unit': "K", 'value': '293.15'})
-    ET.SubElement(sst,'MEE', {'unit': "eV", 'value': '282.530633667015'})
-    ET.SubElement(sst,'D', {'unit': "g/cm3", 'value': '1.286547719061e-18'})
-    ET.SubElement(sst,'fraction', {'n': '0.74', 'ref': "Iron0x56070eea0880"})
-    ET.SubElement(sst,'fraction', {'n': '0.18', 'ref': "Chromium0x56070eea004"}) 
-    ET.SubElement(sst,'fraction', {'n': '0.08', 'ref': "Nickel0x56070ee81420"})
-    sst = ET.SubElement(materials, 'material', \
-            {'name': "G4_AIR0x56070ee81710", 'state': "gas"})
-    ET.SubElement(sst,'T', {'unit': "K", 'value': '293.15'})
-    ET.SubElement(sst,'MEE', {'unit': "eV", 'value': '85.7'})
-    ET.SubElement(sst,'D', {'unit': "g/cm3", 'value': '0.00120479'})
-#    ET.SubElement(sst,'fraction', {'n': '0.000124000124000124', \
-#                   'ref': "C120x56070ee874f0"})
-#    Need definition of Carbon element not isotope 
-
-#    ET.SubElement(sst,'fraction', {'n': '0.755267755267755',  \
-#                   'ref': "N0x56070ee94e30"})
-#    ET.SubElement(sst,'fraction', {'n': '0.231781231781232', \
-#                   'ref': "O0x56070eea0370"})
-#    ET.SubElement(sst,'fraction', {'n': '0.0128270128270128', \
-#                     'ref': "Ar0x56070eea07c0"})
-
-    ET.SubElement(sst,'fraction', {'n': '0.75',  \
-                   'ref': "N0x56070ee94e30"})
-    ET.SubElement(sst,'fraction', {'n': '0.24', \
-                   'ref': "O0x56070eea0370"})
-    ET.SubElement(sst,'fraction', {'n': '0.01', \
-                     'ref': "Ar0x56070eea07c0"})
-
-    sst = ET.SubElement(materials, 'material', \
-            {'Z': '1' , 'name': 'G4_Galactic', 'state': 'gas'})
-    ET.SubElement(sst,'T', {'unit': "K", 'value': '2.73'})
-    ET.SubElement(sst,'P', {'unit': "pascal", 'value': '3e-18'})
-    ET.SubElement(sst,'D', {'unit': "g/cm3", 'value': '1e-25'})
-    ET.SubElement(sst,'atom', {'unit': "g/mole", 'value': '1.01'})
-
-    #ET.ElementTree(gdml).write("test6", 'utf-8', True)
    
 def defineWorldBox(exportList,bbox):
     for obj in exportList :
@@ -296,9 +128,12 @@ def defineWorldBox(exportList,bbox):
     #   print(bbox)
     # Solids get added to solids section of gdml ( solids is a global )
     ET.SubElement(solids, 'box', {'name': 'WorldBox',
-                     'x': str(2*max(abs(bbox.XMin), abs(bbox.XMax))), \
-                     'y': str(2*max(abs(bbox.YMin), abs(bbox.YMax))), \
-                     'z': str(2*max(abs(bbox.ZMin), abs(bbox.ZMax))), \
+                             'x': str(1000), \
+                             'y': str(1000), \
+                             'z': str(1000), \
+                     #'x': str(2*max(abs(bbox.XMin), abs(bbox.XMax))), \
+                     #'y': str(2*max(abs(bbox.YMin), abs(bbox.YMax))), \
+                     #'z': str(2*max(abs(bbox.ZMin), abs(bbox.ZMax))), \
                      'lunit': 'mm'})
 
 
@@ -328,26 +163,32 @@ def createLVandPV(obj, name, solidName):
     global PVcount, POScount, ROTcount
     pvName = 'PV'+name+str(PVcount)
     PVcount += 1
-    posName = 'Pos'+name+str(POScount)
-    POScount += 1
-    rotName = 'Rot'+name+str(ROTcount)
-    ROTcount += 1
     pos  = obj.Placement.Base
-    angles = obj.Placement.Rotation.toEuler()
-    print ("Angles")
-    print (angles)
     lvol = ET.SubElement(structure,'volume', {'name':pvName})
     ET.SubElement(lvol, 'materialref', {'ref': 'SSteel0x56070ee87d10'})
     ET.SubElement(lvol, 'solidref', {'ref': solidName})
     # Place child physical volume in World Volume
     phys = ET.SubElement(worldVOL, 'physvol')
     ET.SubElement(phys, 'volumeref', {'ref': pvName})
-    ET.SubElement(phys, 'position', {'name': posName, 'unit': 'mm', \
-                  'x': str(pos[0]), 'y': str(pos[1]), 'z': str(pos[2]) })
-    ET.SubElement(phys, 'rotation', {'name': rotName, 'unit': 'deg', \
-                  'x': str(-angles[2]), \
-                  'y': str(-angles[1]), \
-                  'z': str(-angles[0])})
+    x = pos[0]
+    y = pos[1]
+    z = pos[2]
+    if x!=0 and y!=0 and z!=0 :
+       posName = 'Pos'+name+str(POScount)
+       POScount += 1
+       ET.SubElement(phys, 'position', {'name': posName, 'unit': 'mm', \
+                  'x': str(x), 'y': str(y), 'z': str(y) })
+    angles = obj.Placement.Rotation.toEuler()
+    print ("Angles")
+    print (angles)
+    a0 = angles[0]
+    a1 = angles[1]
+    a2 = angles[2]
+    if a0!=0 and a1!=0 and a2!=0 :
+       rotName = 'Rot'+name+str(ROTcount)
+       ROTcount += 1
+       ET.SubElement(phys, 'rotation', {'name': rotName, 'unit': 'deg', \
+                  'x': str(-a2), 'y': str(-a1), 'z': str(-a0)})
 
 def createAdjustedLVandPV(obj, name, solidName, delta):
     # Allow for difference in placement between FreeCAD and GDML
@@ -362,10 +203,11 @@ def reportObject(obj) :
     print(obj)
     print("Name : "+obj.Name)
     print("Type : "+obj.TypeId) 
-    print("Placement")
-    print("Pos   : "+str(obj.Placement.Base))
-    print("axis  : "+str(obj.Placement.Rotation.Axis))
-    print("angle : "+str(obj.Placement.Rotation.Angle))
+    if hasattr(obj,'Placement') :
+       print("Placement")
+       print("Pos   : "+str(obj.Placement.Base))
+       print("axis  : "+str(obj.Placement.Rotation.Axis))
+       print("angle : "+str(obj.Placement.Rotation.Angle))
     
     while switch(obj.TypeId) :
 
@@ -625,6 +467,13 @@ def processConeObject(obj, addVolsFlag) :
        createAdjustedLVandPV(obj, obj.Name, coneName, delta)
     return(coneName)
 
+def processSection(obj, addVolsflag) :
+    print("Process Section")
+    ET.SubElement(solids, 'section',{'vertex1': obj.v1, \
+            'vertex2': obj.v2, 'vertex3': obj.v3, 'vertex4': obj.v4, \
+            'type': obj.vtype})
+
+
 def processSphereObject(obj, addVolsFlag) :
     # Needs unique Name
     sphereName = 'Sphere' + obj.Name
@@ -652,6 +501,7 @@ def processGDMLBoxObject(obj, addVolsFlag) :
        delta = FreeCAD.Vector(obj.x.Value / 2, \
                            obj.y.Value / 2,  \
                            obj.z.Value / 2)
+       createAdjustedLVandPV(obj, obj.Name, boxName, delta)
     return (boxName)
 
 def processGDMLConeObject(obj, addVolsFlag) :
@@ -704,6 +554,35 @@ def processGDMLElTubeObject(obj, addVolsFlag) :
        createAdjustedLVandPV(obj, obj.Name, eltubeName, delta)
     return(eltubeName)
 
+def processGDMLPolyconeObject(obj, addVolsFlag) :
+    # Needs unique Name
+    #polyconeName = 'Cone' + obj.Name
+    polyconeName = obj.Name
+    ET.SubElement(solids, 'genericPolycone',{'name': polyconeName, \
+                           'startphi': str(obj.startphi),  \
+                           'deltaphi': str(obj.deltaphi),  \
+                           'aunit': str(obj.aunit),  \
+                           'lunit' : 'mm'})
+    print(obj.OutList)
+    for zplane in obj.OutList :
+        ET.SubElement(solids, 'zplane',{'rmin': str(zplane.rmin), \
+                               'rmax' : str(zplane.rmax), \
+                               'z' : str(zplane.z)})
+
+    if addVolsFlag :
+       # Adjustment for position in GDML
+       #delta = FreeCAD.Vector(0, 0, obj.dz.Value / 2)
+       delta = FreeCAD.Vector(0, 0, 0)
+       createAdjustedLVandPV(obj, obj.Name, polyconeName, delta)
+    return(polyconeName)
+
+def processGDMLQuadObject(obj, addVolsFlag) :
+    print("GDMLQuadrangular")
+    ET.SubElement(solids, 'quadrangular',{'vertex1': obj.v1, \
+            'vertex2': obj.v2, 'vertex3': obj.v3, 'vertex4': obj.v4, \
+            'type': obj.vtype})
+    
+
 def processGDMLSphereObject(obj, addVolsFlag) :
     # Needs unique Name
     sphereName = 'Sphere' + obj.Name
@@ -717,6 +596,33 @@ def processGDMLSphereObject(obj, addVolsFlag) :
     if addVolsFlag :
        createLVandPV(obj,obj.Name,sphereName)
     return(sphereName)
+
+def processGDMLTessellatedObject(obj, addVolsFlag) :
+    # Needs unique Name
+    # Need to output unique define positions
+    # Need to create set of positions
+    #for items in obj.Outlist :
+    #    ET.SubElement(GDMLShared.define,'position',{'name': obj.Name + 'v1', \
+    #            'x':items.x , 'y':items.y, 'z':items.z,'unit':'mm')
+
+    tessName = 'Tess' + obj.Name
+    ET.SubElement(solids, 'tessellated',{'name': tessName})
+    print(len(obj.OutList))
+    for items in obj.OutList :
+        if hasattr(items,'v4' ) :
+            ET.SubElement(solids,'quadrangular',{'vertex1':'v1', \
+                    'vertex2':'v2', 'vertex3':'v3', 'vertex4':'v4',
+                                 'type':'ABSOLUTE'})
+        else :    
+            ET.SubElement(solids,'triangular',{'vertex1':'v1', 'vertex2':'v2', \
+                                 'vertex3':'v3','type':'ABSOLUTE'})
+
+    if addVolsFlag :
+       # Adjustment for position in GDML
+       delta = FreeCAD.Vector(0, 0, 0)
+       createAdjustedLVandPV(obj, obj.Name, tessName, delta)
+       return(tessName)
+
 
 def processGDMLTrapObject(obj, addVolsFlag) :
     # Needs unique Name
@@ -741,6 +647,27 @@ def processGDMLTrapObject(obj, addVolsFlag) :
        createAdjustedLVandPV(obj, obj.Name, trapName, delta)
     return(trapName)
 
+def processGDMLTrdObject(obj, addVolsFlag) :
+    # Needs unique Name
+    trdName = 'Trd' + obj.Name
+    ET.SubElement(solids, 'trd',{'name': trdName, \
+                           'z': str(obj.z.Value),  \
+                           'x1': str(obj.x1.Value),  \
+                           'x2': str(obj.x2.Value),  \
+                           'y1': str(obj.y1.Value),  \
+                           'y2': str(obj.y2.Value),  \
+                           'lunit': obj.lunit})
+    if addVolsFlag :
+       # Adjustment for position in GDML
+       delta = FreeCAD.Vector(0, 0, obj.z.Value / 2)
+       createAdjustedLVandPV(obj, obj.Name, trdName, delta)
+    return(trdName)
+
+def processGDMLTriangle(obj, addVolsFlag) :
+    print("Process GDML Triangle")
+    ET.SubElement(solids, 'triangular',{'vertex1': obj.v1, \
+            'vertex2': obj.v2, 'vertex3': obj.v3,  \
+            'type': obj.vtype})
 
 def processGDMLTubeObject(obj, addVolsFlag) :
     # Needs unique Name
@@ -758,6 +685,35 @@ def processGDMLTubeObject(obj, addVolsFlag) :
        delta = FreeCAD.Vector(0, 0, obj.z.Value / 2)
        createAdjustedLVandPV(obj, obj.Name, tubeName, delta)
     return(tubeName)
+
+def processGDMLXtruObject(obj, addVolsFlag) :
+    # Needs unique Name
+    #tubeName = 'Tube' + obj.Name
+    xtruName = obj.Name
+    ET.SubElement(solids, 'xtru',{'name': xtruName, \
+                           'lunit' : 'mm'})
+    for items in obj.OutList :
+        if items.Type == 'twoDimVertex' :
+           ET.SubElement(solids, 'twoDimVertex',{'x': str(items.x), \
+                                   'y': str(items.y)})
+        if items.Type == 'section' :
+           ET.SubElement(solids, 'section',{'zOrder': str(items.zOrder), \
+                                  'zPosition': str(items.zPosition), \
+                                  'xOffset' : str(items.xOffset), \
+                                  'yOffset' : str(items.yOffset), \
+                                  'scalingFactor' : str(items.scalingFactor)})
+
+
+    if addVolsFlag :
+       # Adjustment for position in GDML
+       delta = FreeCAD.Vector(0, 0, 0)
+       createAdjustedLVandPV(obj, obj.Name, xtruName, delta)
+    return(xtruName)
+
+def processGDML2dVertex(obj, addVolsFlag) :
+    print("Process 2d Vertex")
+    ET.SubElement(solids, 'twoDimVertex',{'x': obj.x, 'y': obj.y})
+
 
 # Need to add position of object2 relative to object1
 # Need to add rotation ??? !!!!
@@ -777,8 +733,26 @@ def addBooleanPositionAndRotation(element,obj1,obj2):
     defineCnt += 1
     ET.SubElement(element,'positionref', {'ref': positionName})
 
+def processGroup(obj, addVolsFlag) :
+    print("Group Num : "+str(len(obj.Group)))
+    for grp in obj.Group :
+        processObject(grp, addVolsFlag)
+
+def processElement(obj, item): # maybe part of material or element (common code)
+    if hasattr(obj,'Z') :
+       #print(dir(obj))
+       item.set('Z',str(obj.Z)) 
+
+    if hasattr(obj,'atom_unit') :
+       atom = ET.SubElement(item,'atom') 
+       atom.set('unit',str(obj.atom_unit)) 
+            
+       if hasattr(obj,'atom_value') :
+          atom.set('value',str(obj.atom_value)) 
+
 def processObject(obj, addVolsFlag) :
     print("\nProcess Object")
+    global materials
     # return solid or boolean reference name
     # addVolsFlag = True then create Logical & Physical Volumes
     #             = False needed for booleans
@@ -787,8 +761,90 @@ def processObject(obj, addVolsFlag) :
       #
       # Deal with non solids
       #
+      if case("App::DocumentObjectGroupPython"):
+         print("   Object List : "+obj.Name)
+         #print(obj)
+         #print(dir(obj))
+         global item
+         while switch(obj.Name) :
+            if case("Materials") : 
+               print("Materials")
+               break
+
+            if case("Isotopes") :
+               print("Isotopes")
+               break
+            
+            if case("Elements") :
+               print("Elements")
+               break
+
+            break
+     
+         if isinstance(obj.Proxy,GDMLconstant) :
+            print("GDML constant")
+            #print(dir(obj))
+
+            item = ET.SubElement(define,'constant',{'name': obj.Name, \
+                                 'value': obj.value })
+            
+         if isinstance(obj.Proxy,GDMLmaterial) :
+            print("GDML material")
+            #print(dir(obj))
+
+            item = ET.SubElement(materials,'material',{'name': obj.Name})
+
+            # process common options material / element
+            processElement(obj, item)
+
+            if hasattr(obj,'Dunit') :
+               ET.SubElement(item,'D',{'unit': obj.Dunit, \
+                                      'value': str(obj.Dvalue)})
+
+            if hasattr(obj,'Tunit') :
+               ET.SubElement(item,'T',{'unit': obj.Tunit, \
+                                      'value': str(obj.Tvalue)})
+           
+            if hasattr(obj,'MEEunit') :
+               ET.SubElement(item,'MEE',{'unit': obj.MEEunit, \
+                                               'value': str(obj.MEEvalue)})
+
+            break
+
+         if isinstance(obj.Proxy,GDMLfraction) :
+
+            print("GDML fraction")
+            ET.SubElement(item,'fraction',{'n': str(obj.n), \
+                                          'ref': obj.Name})
+            break
+
+         if isinstance(obj.Proxy,GDMLcomposite) :
+            print("GDML Composite")
+            break
+
+         if isinstance(obj.Proxy,GDMLisotope) :
+            print("GDML isotope")
+            item = ET.SubElement(materials,'isotope',{'N': str(obj.N), \
+                                                      'Z': str(obj.Z), \
+                                                      'name' : obj.Name})
+            ET.SubElement(item,'atom',{'unit': obj.unit, \
+                                       'value': str(obj.value)})
+            break
+
+         if isinstance(obj.Proxy,GDMLelement) :
+            print("GDML element")
+            item = ET.SubElement(materials,'element',{'name': obj.Name})
+            processElement(obj,item)
+            break
+
+         # Commented out as individual objects will also exist
+         #if len(obj.Group) > 1 :
+         #   for grp in obj.Group :
+         #       processObject(grp, addVolsFlag)
+         break
+
       if case("Part::Cut") :
-         print("Cut")
+         print("   Cut")
          cutName = 'Cut'+obj.Name
          ref1 = processObject(obj.Base,False)
          ref2 = processObject(obj.Tool,False)
@@ -802,7 +858,7 @@ def processObject(obj, addVolsFlag) :
          break
 
       if case("Part::Fuse") :
-         print("Union")
+         print("   Union")
          unionName = 'Union'+obj.Name
          ref1 = processObject(obj.Base,False)
          ref2 = processObject(obj.Tool,False)
@@ -817,7 +873,7 @@ def processObject(obj, addVolsFlag) :
          break
 
       if case("Part::Common") :
-         print("intersection")
+         print("   Intersection")
          intersectName = 'Intersect'+obj.Name
          ref1 = processObject(obj.Base,False)
          ref2 = processObject(obj.Tool,False)
@@ -832,7 +888,7 @@ def processObject(obj, addVolsFlag) :
          break
 
       if case("Part::MultiFuse") :
-         print("Multifuse") 
+         print("   Multifuse") 
          multName = 'MultiFuse'+obj.Name
          multUnion = ET.Element('multiUnion',{'name': multName })
          for subobj in obj.Shapes:
@@ -849,78 +905,125 @@ def processObject(obj, addVolsFlag) :
          break
 
       if case("Part::MultiCommon") :
-         print("Multi Common / intersection")
-         print("Not available in GDML")
+         print("   Multi Common / intersection")
+         print("   Not available in GDML")
          exit(-3)
          break
 
       if case("Mesh::Feature") :
-         print("Mesh Feature") 
+         print("   Mesh Feature") 
          return(processMesh(obj, obj.Mesh, obj.Name))
          break
 
       if case("Part::FeaturePython"):
-          print("Python Feature")
+          print("   Python Feature")
           if hasattr(obj.Proxy, 'Type') :
+             print(obj.Proxy.Type) 
              switch(obj.Proxy.Type)
              if case("GDMLBox") :
-                print("GDMLBox") 
+                print("      GDMLBox") 
                 return(processGDMLBoxObject(obj, addVolsFlag))
                 break
 
              if case("GDMLEllipsoid") :
-                print("GDMLEllipsoid") 
+                print("      GDMLEllipsoid") 
                 return(processGDMLEllipsoidObject(obj, addVolsFlag))
                 break
 
              if case("GDMLElTube") :
-                print("GDMLElTube") 
+                print("      GDMLElTube") 
                 return(processGDMLElTubeObject(obj, addVolsFlag))
                 break
 
              if case("GDMLCone") :
-                print("GDMLCone") 
+                print("      GDMLCone") 
                 return(processGDMLConeObject(obj, addVolsFlag))
                 break
 
+             if case("GDMLPolycone") :
+                print("      GDMLPolycone") 
+                return(processGDMLPolyconeObject(obj, addVolsFlag))
+                break
+             
              if case("GDMLSphere") :
-                print("GDMLSphere") 
+                print("      GDMLSphere") 
                 return(processGDMLSphereObject(obj, addVolsFlag))
                 break
 
+             if case("GDMLTessellated") :
+                print("      GDMLTessellated") 
+                return(processGDMLTessellatedObject(obj, addVolsFlag))
+                break
+
              if case("GDMLTrap") :
-                print("GDMLTrap") 
+                print("      GDMLTrap") 
                 return(processGDMLTrapObject(obj, addVolsFlag))
                 break
 
-             if case("GDMLTube") :
-                print("GDMLTube") 
-                return(processGDMLTubeObject(obj, addVolsFlag))
+             if case("GDMLTrd") :
+                print("      GDMLTrd") 
+                return(processGDMLTrdObject(obj, addVolsFlag))
                 break
+
+             if case("GDMLTube") :
+                print("      GDMLTube") 
+                return(processGDMLTubeObject(obj, addVolsFlag))
+                print("GDML Tube processed")
+                break
+
+             if case("GDMLXtru") :
+                print("      GDMLXtru") 
+                return(processGDMLXtruObject(obj, addVolsFlag))
+                break
+
+             print("Not yet Handled")
+
           else :
              print("Not a GDML Feature")
           break  
+      # Same as Part::Feature but no position
+      if case("App::FeaturePython") :
+         print("App::FeaturePython") 
+         # Following not needed as handled bu Outlist on Tessellated
+         #if isinstance(obj.Proxy, GDMLQuadrangular) :
+         #   return(processGDMLQuadObject(obj, addVolsFlag))
+         #   break
+  
+         #if isinstance(obj.Proxy, GDMLTriangular) :
+         #   return(processGDMLTriangleObject(obj, addVolsFlag))
+         #   break
+          
+         # Following not needed as handled bu Outlist on Xtru
+
+         #if isinstance(obj.Proxy, GDML2dVertex) :
+         #   return(processGDML2dVertObject(obj, addVolsFlag))
+         #   break
+            
+         #if isinstance(obj.Proxy, GDMLSection) :
+         #   return(processGDMLSection(obj, addVolsFlag))
+         #   break
+         break  
 
       #
       #  Now deal with objects that map to GDML solids
       #
       if case("Part::Box") :
-         print("Box")
+         print("    Box")
          return(processBoxObject(obj, addVolsFlag))
          break
 
       if case("Part::Cylinder") :
-         print("Cylinder")
+         print("    Cylinder")
          return(processCylinderObject(obj, addVolsFlag))
          break
 
       if case("Part::Cone") :
-         print("Cone")
+         print("    Cone")
          return(processConeObject(obj, addVolsFlag))
          break
 
       if case("Part::Sphere") :
-         print("Sphere")
+         print("    Sphere")
          return(processSphereObject(obj, addVolsFlag))
          break
 
@@ -929,7 +1032,9 @@ def processObject(obj, addVolsFlag) :
       # Need to check obj has attribute Shape
       # Create tessellated solid
       #
-      return(processObjectShape(obj, AddVolsFlag))
+      #return(processObjectShape(obj, addVolsFlag))
+      print("Convert FreeCAD shape to Tessellated")
+      return(processObjectShape(obj))
       break
 
 def export(exportList,filename) :
@@ -938,12 +1043,14 @@ def export(exportList,filename) :
     # process Objects
     print("\nStart GDML Export 0.1")
     GDMLstructure()
-    defineMaterials()
-    constructWorld()
+    #defineMaterials()
+    #constructWorld()
     bbox = FreeCAD.BoundBox()
     defineWorldBox(exportList, bbox)
-    for obj in exportList :
-        reportObject(obj)
+    #for obj in exportList :
+    zOrder = 1
+    for obj in FreeCAD.ActiveDocument.Objects:
+        #reportObject(obj)
         processObject(obj, True)
 
     # Now append World Volume definition to stucture
@@ -956,5 +1063,6 @@ def export(exportList,filename) :
     # format & write GDML file 
     indent(gdml)
     print("Write to GDML file")
-    ET.ElementTree(gdml).write(filename, 'utf-8', True)
+    #ET.ElementTree(gdml).write(filename, 'utf-8', True)
+    ET.ElementTree(gdml).write(filename)
     print("GDML file written")
