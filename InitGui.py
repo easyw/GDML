@@ -47,9 +47,12 @@ class GDML_Workbench ( Workbench ):
            self.signal = []
 
        def slotCreatedDocument(self, doc):
+           import os, sys
+           global GDML_WB_resources_path
            from importGDML import processGDML
-           processGDML(doc,FreeCAD.getResourceDir() + \
-                       "Mod/GDML/Resources/Default.gdml")
+           processGDML(doc,os.path.join(GDML_WB_resources_path,'Default.gdml'))
+           # FreeCAD.getResourceDir() + \
+           #             "Mod/GDML/Resources/Default.gdml")
     
     "GDML workbench object"
     def __init__(self):
